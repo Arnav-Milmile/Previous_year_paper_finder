@@ -7,7 +7,7 @@ The project solves the common problem of slow, hard-to-navigate FTP folders by b
 ## Live Demo
 
 ```text
-https://previousyearpaperfinder-production.up.railway.app
+https://rcoem-previousyearpapers.up.railway.app/
 ```
 
 ## Highlights
