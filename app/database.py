@@ -262,7 +262,9 @@ def count_papers(
 
 
 def search_papers(query: str, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
-    like = f"%{query.strip()}%"
+    term = query.strip()
+    like = f"%{term}%"
+    prefix = f"{term}%"
     with connect() as conn:
         rows = conn.execute(
             """
@@ -279,10 +281,35 @@ def search_papers(query: str, limit: int = 50, offset: int = 0) -> list[dict[str
                OR semester LIKE :query
                OR exam_category LIKE :query
                OR exam_type LIKE :query
-            ORDER BY course, branch, year DESC, semester, filename
+            ORDER BY
+                CASE
+                    WHEN subject = :term COLLATE NOCASE THEN 0
+                    WHEN filename = :filename COLLATE NOCASE THEN 0
+                    WHEN subject LIKE :prefix THEN 1
+                    WHEN filename LIKE :prefix THEN 1
+                    WHEN subject LIKE :query THEN 2
+                    WHEN filename LIKE :query THEN 2
+                    WHEN semester LIKE :query THEN 3
+                    WHEN session LIKE :query THEN 4
+                    WHEN branch LIKE :query THEN 5
+                    WHEN ftp_path LIKE :query THEN 6
+                    ELSE 7
+                END,
+                year DESC,
+                course,
+                branch,
+                semester,
+                filename
             LIMIT :limit OFFSET :offset
             """,
-            {"query": like, "limit": limit, "offset": offset},
+            {
+                "term": term,
+                "filename": f"{term}.pdf",
+                "query": like,
+                "prefix": prefix,
+                "limit": limit,
+                "offset": offset,
+            },
         ).fetchall()
     return [row_to_dict(row) for row in rows]
 
