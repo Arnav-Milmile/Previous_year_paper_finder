@@ -16,8 +16,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="PYQ Finder",
-    description="Fast searchable index for college previous year question papers.",
+    title="Previous Year Paper Finder",
+    description="Searchable index for college previous year question papers.",
     version="0.1.0",
     lifespan=lifespan,
 )

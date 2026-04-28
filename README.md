@@ -1,50 +1,74 @@
-# PYQ Finder
+# Previous Year Paper Finder
 
-FastAPI website for browsing and downloading previous year question papers from an FTP-backed archive.
+A FastAPI web application for searching, browsing, and downloading previous year question papers from a legacy FTP archive.
 
-The app keeps browsing fast by indexing the FTP file tree into SQLite. The PDF list is served from `data/papers.db`; downloads are fetched from FTP on demand unless a file is cached locally in `data/papers/`.
+The project solves the common problem of slow, hard-to-navigate FTP folders by building a local SQLite index of the remote file tree. Students interact with a fast website, while the application handles FTP traversal and download proxying behind the scenes.
 
-## Features
+## Live Demo
 
+```text
+https://previousyearpaperfinder-production.up.railway.app
+```
+
+## Highlights
+
+- SQLite-backed index of 11,000+ PDF papers
+- Search prioritizes paper/subject title matches before branch or path matches
 - Browse by course, branch, exam category, session, semester, and year
-- Search by paper name, branch, year, semester, or original FTP path
-- Fast SQLite-backed listing
-- Direct PDF download endpoint
-- Responsive HTML/CSS/JS frontend
-- FastAPI docs at `/docs`
-- Railway-ready deployment config
+- Dynamic metadata parser for inconsistent FTP folder names
+- Direct download endpoint that proxies files from FTP
+- Responsive HTML, CSS, and vanilla JavaScript frontend
+- FastAPI-generated API documentation available at `/docs`
+- Railway deployment config included
+
+## Architecture
+
+```text
+FTP Server
+   |
+   | sync_ftp.py scans folders and PDF paths
+   v
+SQLite Index: data/papers.db
+   |
+   | FastAPI reads indexed metadata
+   v
+Website + JSON API
+   |
+   | downloads are fetched from FTP on demand
+   v
+Student Browser
+```
+
+This keeps page loads fast because browsing and search do not contact the FTP server on every request.
 
 ## Project Structure
 
 ```text
-pyq-site/
-  app/
-    main.py              FastAPI app entrypoint
-    config.py            Environment settings
-    database.py          SQLite schema and queries
-    models.py            API response models
-    routers/
-      pages.py           HTML page routes
-      papers.py          API and download routes
-    sync/
-      ftp_sync.py        FTP traversal and metadata parser
-  data/
-    papers.db            SQLite paper index, committed for deployment
-    papers/              Optional local PDF cache, not committed
-  docs/
-    implementation-plan.txt
-  static/
-    css/style.css
-    js/app.js
-  templates/
-    base.html
-    index.html
-    browse.html
-  rebuild_metadata.py    Rebuild labels from saved FTP paths
-  sync_ftp.py            Rescan FTP and update SQLite
-  railway.json           Railway start/healthcheck config
-  runtime.txt            Python runtime hint
-  requirements.txt
+app/
+  main.py              FastAPI app entrypoint
+  config.py            Environment settings
+  database.py          SQLite schema and queries
+  models.py            API response models
+  routers/
+    pages.py           HTML page routes
+    papers.py          JSON API and download routes
+  sync/
+    ftp_sync.py        FTP traversal, retry logic, metadata parser
+data/
+  papers.db            SQLite paper index
+  papers/              Optional local PDF cache
+docs/
+  implementation-plan.txt
+static/
+  css/style.css
+  js/app.js
+templates/
+  base.html
+  index.html
+  browse.html
+rebuild_metadata.py    Rebuild metadata from existing FTP paths
+sync_ftp.py            Rescan FTP and update SQLite
+railway.json           Railway deployment config
 ```
 
 ## Local Setup
@@ -56,15 +80,15 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-## Build Or Refresh The Index
+## Refresh The Paper Index
 
-Run this when you need to rescan the FTP server:
+Scan the FTP server and update `data/papers.db`:
 
 ```powershell
 python sync_ftp.py
 ```
 
-Run this when you changed only the metadata parser and want to update labels from existing paths:
+Rebuild metadata labels from existing FTP paths without scanning FTP again:
 
 ```powershell
 python rebuild_metadata.py
@@ -76,77 +100,39 @@ python rebuild_metadata.py
 python -m uvicorn app.main:app --reload
 ```
 
-Open:
+Local URLs:
 
 ```text
 http://127.0.0.1:8000
+http://127.0.0.1:8000/browse
+http://127.0.0.1:8000/docs
 ```
 
-## Git Push Checklist
+## Deployment
 
-These should be committed:
-
-- `app/`
-- `static/`
-- `templates/`
-- `data/papers.db`
-- `data/papers/.gitkeep`
-- `docs/`
-- `.env.example`
-- `.gitignore`
-- `README.md`
-- `railway.json`
-- `runtime.txt`
-- `requirements.txt`
-- `sync_ftp.py`
-- `rebuild_metadata.py`
-
-These should not be committed:
-
-- `.env`
-- `.venv/`
-- `__pycache__/`
-- `*.log`
-- downloaded PDFs in `data/papers/`
-
-Push commands:
-
-```powershell
-git status --short
-git add .
-git commit -m "Prepare PYQ Finder for Railway deployment"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-git push -u origin main
-```
-
-If the remote already exists, skip `git remote add origin` or update it:
-
-```powershell
-git remote set-url origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-```
-
-## Deploy On Railway
-
-This repo includes `railway.json`. Railway will run:
+The repository includes `railway.json`. Railway starts the app with:
 
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
 ```
 
-Railway steps:
+Required committed data:
 
-1. Create a new Railway project.
-2. Choose Deploy from GitHub repo.
-3. Select this repository.
-4. Wait for the deployment to finish.
-5. Open the service Networking settings.
-6. Generate a public domain.
+- `data/papers.db`
+- `data/papers/.gitkeep`
 
-Optional Railway variables:
+Ignored local-only files:
+
+- `.env`
+- `.venv/`
+- `__pycache__/`
+- `*.log`
+- PDFs inside `data/papers/`
+
+## Environment Variables
 
 ```env
-APP_NAME=PYQ Finder
+APP_NAME=Previous Year Paper Finder
 DATABASE_PATH=data/papers.db
 PAPERS_DIR=data/papers
 FTP_HOST=103.220.82.76
@@ -161,3 +147,7 @@ FTP_USE_MLSD=false
 FTP_RETRIES=2
 FTP_TRY_ALTERNATE_MODE=true
 ```
+
+## Notes
+
+The application currently stores only the paper index in SQLite. PDF files are fetched from FTP when a download is requested. A future improvement would be object-storage caching with Cloudflare R2 or S3-compatible storage.

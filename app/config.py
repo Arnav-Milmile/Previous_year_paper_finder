@@ -8,7 +8,7 @@ ROOT_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    app_name: str = "PYQ Finder"
+    app_name: str = "Previous Year Paper Finder"
     database_path: Path = ROOT_DIR / "data" / "papers.db"
     papers_dir: Path = ROOT_DIR / "data" / "papers"
 
