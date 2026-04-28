@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Search PYQs{% endblock %}
+
+{% block content %}
+<section class="workspace" data-page="search">
+  <div class="panel intro-panel">
+    <p class="eyebrow">Previous year question papers</p>
+    <h1>Find the paper you need.</h1>
+    <form class="searchbar" id="search-form">
+      <input id="search-input" name="q" type="search" placeholder="Subject, code, year, exam type" autocomplete="off" required>
+      <button type="submit">Search</button>
+    </form>
+  </div>
+
+  <section class="results-shell">
+    <div class="section-head">
+      <h2>Results</h2>
+      <span id="result-count">0 papers</span>
+    </div>
+    <div id="result-status" class="result-status" aria-live="polite"></div>
+    <div id="results" class="paper-list" aria-live="polite"></div>
+    <div class="results-actions">
+      <button class="ghost-button" id="load-more" type="button" hidden>Load more</button>
+    </div>
+  </section>
+</section>
+{% endblock %}

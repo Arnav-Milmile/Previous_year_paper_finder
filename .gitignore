@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.log
+.venv/
+venv/
+.env
+
+data/*.db
+!data/papers.db
+data/*.db-*
+data/papers/*
+!data/papers/.gitkeep

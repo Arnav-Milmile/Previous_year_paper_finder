@@ -1,0 +1,259 @@
+# 📄 PYQ Website — Implementation Plan
+
+## 1. Problem Statement
+
+Your college hosts PYQ papers on an FTP server that:
+- Doesn't work in normal browsers
+- Requires File Explorer or a dedicated FTP client
+- Has a confusing folder structure
+- Previous attempt on Render suffered from extreme cold-start latency
+
+**Goal:** Build a clean, fast website that indexes the FTP content and lets students browse/download papers effortlessly.
+
+---
+
+## 2. Why the Previous Version Was Slow
+
+```mermaid
+graph LR
+    A[User Request] --> B[Render Wakes Up<br/>~30-60s cold start]
+    B --> C[FastAPI connects to FTP<br/>~5-10s per request]
+    C --> D[FTP lists directory<br/>~2-5s]
+    D --> E[Response to user]
+    style B fill:#ff6b6b,color:#fff
+    style C fill:#ff6b6b,color:#fff
+```
+
+Two compounding problems:
+1. **Render free tier cold starts** — server spins down after 15 min of inactivity, takes 30-60s to wake up
+2. **Live FTP fetching** — every page load hit the FTP server in real-time (slow, unreliable)
+
+---
+
+## 3. The Fix: Offline Sync + Pre-built Index
+
+Instead of hitting FTP on every user request, we **sync once** and serve cached data:
+
+```mermaid
+graph TB
+    subgraph "One-time / Periodic Sync"
+        S1[sync_ftp.py] --> S2[Connect to FTP]
+        S2 --> S3[Walk all directories]
+        S3 --> S4[Download all PDFs<br/>to local /papers folder]
+        S4 --> S5[Build index in<br/>SQLite database]
+    end
+
+    subgraph "User Request Flow — Fast!"
+        U1[User visits site] --> U2[FastAPI reads<br/>SQLite index]
+        U2 --> U3[Returns file list<br/>instantly ~50ms]
+        U3 --> U4[User clicks download]
+        U4 --> U5[Serve PDF from<br/>local disk]
+    end
+
+    style S1 fill:#4ecdc4,color:#fff
+    style U3 fill:#45b7d1,color:#fff
+```
+
+> [!IMPORTANT]
+> This is the **key architectural decision** that makes this project interview-worthy. You can explain:
+> - "I identified that the bottleneck was real-time FTP access on every request"
+> - "I designed an offline sync pipeline that decouples data ingestion from serving"
+> - "This reduced response times from 30-60s to under 100ms"
+
+---
+
+## 4. Hosting Alternatives
+
+| Option | Cold Start | Cost | Persistent Storage | Recommendation |
+|--------|-----------|------|-------------------|----------------|
+| **Render (Free)** | 30-60s ❌ | Free | No ❌ | Previous choice — avoid |
+| **Railway (Free)** | ~5s | Free (500 hrs/mo) | Yes ✅ | Good option |
+| **Oracle Cloud Free VM** | None ✅ | Always free | Yes ✅ | ⭐ Best for this project |
+| **Fly.io (Free)** | ~3s | Free (3 shared VMs) | Volumes ✅ | Good option |
+| **VPS (DigitalOcean/Hetzner)** | None ✅ | ~$4-5/mo | Yes ✅ | Most reliable |
+| **GitHub Pages + API** | None ✅ | Free | Via Git ✅ | Hybrid approach |
+
+### Recommended: **Two-tier approach**
+
+1. **Sync & store PDFs in the Git repo itself** (if total size < 500MB) or in **Cloudflare R2** (free 10GB)
+2. **Host the FastAPI app on Railway or Oracle Cloud** — no cold starts, persistent disk
+
+> [!TIP]
+> For a college project, if total PDF size is manageable (< 200-300 MB), storing them directly in the repo and deploying on Railway is the simplest and most reliable approach.
+
+---
+
+## 5. Tech Stack
+
+| Layer | Technology | Why |
+|-------|-----------|-----|
+| **Backend** | FastAPI (Python) | Fast, modern, auto-docs, great for resume |
+| **Database** | SQLite | Zero config, file-based, perfect for this scale |
+| **FTP Sync** | `ftplib` (Python stdlib) | No extra dependencies |
+| **Frontend** | Vanilla HTML + CSS + JS | Simple, fast, no build step |
+| **Templating** | Jinja2 (via FastAPI) | Server-side rendering, SEO-friendly |
+| **Deployment** | Railway / Oracle Cloud | No cold starts |
+
+---
+
+## 6. Project Structure
+
+```
+pyq-site/
+├── app/
+│   ├── __init__.py
+│   ├── main.py              # FastAPI app entry point
+│   ├── config.py             # Settings & env vars
+│   ├── database.py           # SQLite connection & queries
+│   ├── models.py             # Pydantic models
+│   ├── routers/
+│   │   ├── __init__.py
+│   │   ├── papers.py         # API routes for papers
+│   │   └── pages.py          # HTML page routes
+│   └── sync/
+│       ├── __init__.py
+│       └── ftp_sync.py       # FTP sync logic
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   ├── js/
+│   │   └── app.js
+│   └── favicon.ico
+├── templates/
+│   ├── base.html
+│   ├── index.html            # Home / search page
+│   └── browse.html           # Browse by subject/year
+├── data/
+│   ├── papers.db             # SQLite database (auto-created)
+│   └── papers/               # Downloaded PDFs (auto-created)
+├── .env.example              # Environment template
+├── .gitignore
+├── requirements.txt
+├── sync_ftp.py               # CLI script to run FTP sync
+└── README.md
+```
+
+> [!NOTE]
+> This structure follows FastAPI best practices with separation of concerns — routers, models, config, and sync logic are all in dedicated modules. This is easy to explain in an interview.
+
+---
+
+## 7. Key Features
+
+### MVP (What we build now)
+- [x] FTP sync script that downloads all papers and indexes them in SQLite
+- [x] Browse papers by **department → subject → year**
+- [x] Search papers by subject name or paper code
+- [x] Direct download links
+- [x] Clean, responsive UI
+- [x] API documentation (auto-generated by FastAPI at `/docs`)
+
+### Nice-to-have (later)
+- [ ] Bookmark/favorite papers
+- [ ] "Recently added" section
+- [ ] Analytics (most downloaded papers)
+- [ ] Auto-sync on schedule (cron job)
+
+---
+
+## 8. Database Schema
+
+```sql
+CREATE TABLE papers (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    filename    TEXT NOT NULL,           -- "CS301_2024_EndSem.pdf"
+    filepath    TEXT NOT NULL,           -- relative path in /data/papers/
+    ftp_path    TEXT NOT NULL UNIQUE,    -- original FTP path (for dedup)
+    department  TEXT,                    -- "CSE", "ECE", etc.
+    subject     TEXT,                    -- "Data Structures"
+    year        TEXT,                    -- "2024"
+    exam_type   TEXT,                    -- "EndSem", "MidSem", "Quiz"
+    file_size   INTEGER,                -- bytes
+    synced_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_department ON papers(department);
+CREATE INDEX idx_subject ON papers(subject);
+CREATE INDEX idx_year ON papers(year);
+```
+
+> [!IMPORTANT]
+> The exact schema for `department`, `subject`, `year`, and `exam_type` depends on how your FTP folder structure is organized. **I need you to describe the FTP folder hierarchy** (e.g., is it organized like `Department/Subject/Year/file.pdf`?).
+
+---
+
+## 9. API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | Home page with search |
+| `GET` | `/browse` | Browse by department/subject/year |
+| `GET` | `/api/papers` | List papers (with filters: dept, subject, year) |
+| `GET` | `/api/papers/search?q=...` | Search papers |
+| `GET` | `/api/papers/{id}/download` | Download a specific paper |
+| `GET` | `/api/departments` | List all departments |
+| `GET` | `/api/subjects` | List subjects (filterable by dept) |
+| `GET` | `/docs` | Auto-generated API docs (Swagger) |
+
+---
+
+## 10. Interview Talking Points
+
+This project gives you strong talking points for:
+
+1. **System Design** — "I decoupled data ingestion from serving using an offline sync pipeline"
+2. **Performance Optimization** — "Reduced load times from 60s to <100ms by caching FTP data locally"
+3. **Python** — FastAPI, ftplib, SQLite, Pydantic, async
+4. **API Design** — RESTful endpoints with filtering, search, pagination
+5. **Problem Solving** — "I identified a real pain point for 1000+ students and built a practical solution"
+
+---
+
+## 11. Questions Before We Start
+
+Before I start coding, I need the following:
+
+### Must-have:
+1. **FTP folder structure** — How are the files organized on the FTP server? (e.g., `Department/Subject/Year/file.pdf` or something else?)  
+   → This determines how we parse metadata from the file paths.
+
+2. **FTP credentials** — You mentioned you'll share these later. I'll need: host, port, username, password.
+
+3. **Approximate total size** — Roughly how many papers / how much total data is on the FTP? This affects whether we store PDFs in the repo or need external storage.
+
+### Nice-to-have:
+4. **College name / branding** — Any specific colors, logo, or name you want on the site?
+
+5. **Department list** — A list of departments that exist on the FTP (so I can validate the parsed metadata).
+
+6. **Hosting preference** — From the options in Section 4, which appeals to you? I recommend Railway (free, easy) or Oracle Cloud (always free VM, no limits).
+
+---
+
+> [!TIP]
+> **What we can do RIGHT NOW without FTP credentials:**
+> - Build the entire frontend
+> - Build the FastAPI backend with all routes
+> - Build the database layer
+> - Create mock data for testing
+> - Write the FTP sync skeleton (plug in credentials later)
+> 
+> We'll have a fully working app that just needs FTP credentials to go live.
+
+**Ready to start once you answer the questions above!**
+
+answer from previous Version
+FTP Structure:
+Fully dynamic hierarchical filesystem (/folder/subfolder/file), no enforced academic pattern.
+FTP Credentials:
+Anonymous access
+Host: 103.220.82.76
+Port: 21
+Username: anonymous
+Password: empty
+Total Size Handling:
+Files are streamed directly from FTP (not stored locally)
+Uses in-memory buffering → limited by RAM
+Suitable for moderate datasets, not large-scale archives
+
+we will think about hosting and all other minor changes later
