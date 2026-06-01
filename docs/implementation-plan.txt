@@ -66,8 +66,8 @@ graph TB
 
 | Option | Cold Start | Cost | Persistent Storage | Recommendation |
 |--------|-----------|------|-------------------|----------------|
-| **Render (Free)** | 30-60s ❌ | Free | No ❌ | Previous choice — avoid |
-| **Railway (Free)** | ~5s | Free (500 hrs/mo) | Yes ✅ | Good option |
+| **Render (Free)** | 30-60s cold start | Free | No | Current deployment |
+| **Railway (Free)** | ~5s | Free (500 hrs/mo) | Yes ✅ | Alternative option |
 | **Oracle Cloud Free VM** | None ✅ | Always free | Yes ✅ | ⭐ Best for this project |
 | **Fly.io (Free)** | ~3s | Free (3 shared VMs) | Volumes ✅ | Good option |
 | **VPS (DigitalOcean/Hetzner)** | None ✅ | ~$4-5/mo | Yes ✅ | Most reliable |
@@ -76,10 +76,10 @@ graph TB
 ### Recommended: **Two-tier approach**
 
 1. **Sync & store PDFs in the Git repo itself** (if total size < 500MB) or in **Cloudflare R2** (free 10GB)
-2. **Host the FastAPI app on Railway or Oracle Cloud** — no cold starts, persistent disk
+2. **Host the FastAPI app on Render, Railway, or Oracle Cloud** — Render is the current deployment target
 
 > [!TIP]
-> For a college project, if total PDF size is manageable (< 200-300 MB), storing them directly in the repo and deploying on Railway is the simplest and most reliable approach.
+> For a college project, keeping the SQLite index in the repo and deploying the FastAPI app to Render is the current simplest setup.
 
 ---
 
@@ -92,7 +92,7 @@ graph TB
 | **FTP Sync** | `ftplib` (Python stdlib) | No extra dependencies |
 | **Frontend** | Vanilla HTML + CSS + JS | Simple, fast, no build step |
 | **Templating** | Jinja2 (via FastAPI) | Server-side rendering, SEO-friendly |
-| **Deployment** | Railway / Oracle Cloud | No cold starts |
+| **Deployment** | Render | Current public host: https://pyq-indexer.onrender.com/ |
 
 ---
 
@@ -226,7 +226,7 @@ Before I start coding, I need the following:
 
 5. **Department list** — A list of departments that exist on the FTP (so I can validate the parsed metadata).
 
-6. **Hosting preference** — From the options in Section 4, which appeals to you? I recommend Railway (free, easy) or Oracle Cloud (always free VM, no limits).
+6. **Hosting preference** — Current deployment is on Render at https://pyq-indexer.onrender.com/.
 
 ---
 

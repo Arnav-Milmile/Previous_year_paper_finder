@@ -7,7 +7,7 @@ The project solves the common problem of slow, hard-to-navigate FTP folders by b
 ## Live Demo
 
 ```text
-https://rcoem-previousyearpapers.up.railway.app/
+https://pyq-indexer.onrender.com/
 ```
 
 ## Highlights
@@ -20,7 +20,7 @@ https://rcoem-previousyearpapers.up.railway.app/
 - Direct download endpoint that proxies files from FTP
 - Responsive HTML, CSS, and vanilla JavaScript frontend
 - FastAPI-generated API documentation available at `/docs`
-- Railway deployment config included
+- Render deployment config included
 - Scheduled GitHub Actions workflow for periodic index refreshes
 
 ## Architecture
@@ -74,7 +74,7 @@ templates/
   browse.html
 rebuild_metadata.py    Rebuild metadata from existing FTP paths
 sync_ftp.py            Rescan FTP and update SQLite
-railway.json           Railway deployment config
+render.yaml            Render deployment config
 ```
 
 ## Local Setup
@@ -118,7 +118,7 @@ http://127.0.0.1:8000/docs
 
 ## Deployment
 
-The repository includes `railway.json`. Railway starts the app with:
+The repository includes `render.yaml`. Render starts the app with:
 
 ```bash
 python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT

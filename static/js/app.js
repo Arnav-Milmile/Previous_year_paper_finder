@@ -1,4 +1,4 @@
-const PAGE_SIZE = 100;
+const PAGE_SIZE = 15;
 
 const state = {
   course: [],
