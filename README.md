@@ -62,9 +62,6 @@ app/
 data/
   papers.db            SQLite paper index
   papers/              Optional local PDF cache
-docs/
-  implementation-plan.txt
-  scheduled-sync.md
 static/
   css/style.css
   js/app.js
@@ -100,7 +97,7 @@ Rebuild metadata labels from existing FTP paths without scanning FTP again:
 python rebuild_metadata.py
 ```
 
-The repository also includes a GitHub Actions workflow that refreshes the index every two months. See `docs/scheduled-sync.md`.
+The repository also includes a GitHub Actions workflow that refreshes the index every two months.
 
 ## Run Locally
 
